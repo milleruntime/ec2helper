@@ -9,6 +9,6 @@ ec2 = boto.ec2.connect_to_region('us-east-1')
 ids = [e.id for e in ec2.get_only_instances(filters={'tag:boto-wrapper':'python-experimentation'})]
 
 print "Terminating: " + str(ids)
-# TODO add prompt
-
-ec2.terminate_instances(ids)
+line = raw_input("Are you sure (type 'yes')? ")
+if "yes" == line.lower():
+  ec2.terminate_instances(ids)
