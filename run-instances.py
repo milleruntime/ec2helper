@@ -50,4 +50,15 @@ for instance in reservation.instances:
     print instance.private_ip_address
 
 # print "Tagging: " + str(ids)
-ec2.create_tags(ids, {'boto-wrapper':'python-experimentation'})
+tags = {}
+
+with open("tags") as file:
+  for line in file:
+    line = line.strip()
+    if not line.startswith('#') and line.find('=') > -1:
+      i = line.find('=')
+      key = line[:i].strip()
+      value = line[i+1:].strip()
+      tags[key] = value
+
+ec2.create_tags(ids, tags)
