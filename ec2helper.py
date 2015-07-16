@@ -6,6 +6,8 @@ import inspect
 import argparse
 import boto.ec2
 import time
+import StringIO
+import gzip
 from ConfigParser import SafeConfigParser
 from ConfigParser import MissingSectionHeaderError
 from ConfigParser import NoSectionError
@@ -72,13 +74,34 @@ class EC2Helper():
     Converts the contents of the tags configuration file to filters for EC2
     instance listing.
     """
-    return dict([('tag:%s'%k, v) for k, v in self.get_conf('tags').items()])
+    return dict([('tag:%s' % k, v) for k, v in self.get_conf('tags').items()])
 
-  def get_instances(self):
+  def get_instances(self, instances = None, filters = None):
     """
-    Retrieves the instances which match the tags in the configuration.
+    Retrieves the instances which match the tags in the configuration, or the
+    specified optional filters.
     """
-    return self.ec2.get_only_instances(filters = self.tags_to_filters())
+    if filters is not None:
+      f = {}
+      for item in self.make_list(filters):
+        i = item.split('=', 1)
+        k = i[0].strip()
+        if len(i) == 2:
+          v = i[1].strip()
+        else:
+          if k.startswith('tag:'):
+            v = k[4:].strip()
+            k = 'tag-key'
+          else:
+            sys.exit('Invalid filter: %s' % k)
+        f[k] = v
+    else:
+      f = self.tags_to_filters()
+    if instances is not None:
+      i = self.make_list(instances)
+    else:
+      i = None
+    return self.ec2.get_only_instances(instance_ids = i, filters = f)
 
   def make_list(self, s, list_delim = ','):
     """
@@ -86,12 +109,12 @@ class EC2Helper():
     """
     return [x.strip() for x in s.split(list_delim) if x.strip() != '']
 
-  def list_instances(self, show_terminated = False):
+  def list_instances(self, show_terminated = False, instances = None, filters = None):
     """
     Lists existing instances, which match the tags in the configuration.
     """
-    for e in self.get_instances():
-      if (e.state in ['terminated'] and not show_terminated):
+    for e in self.get_instances(instances = instances, filters = filters):
+      if e.state in ['terminated'] and not show_terminated:
         continue
       print('=' * 65)
       options = [ 'id', 'ip_address', 'private_ip_address', 'state',
@@ -115,7 +138,7 @@ class EC2Helper():
     actual block device map object.
     """
     b = 'block_device_map'
-    if instance_conf[b] is not None:
+    if b in instance_conf:
       disks = BlockDeviceMapping()
       for device in self.make_list(instance_conf[b]):
         device_args = self.get_conf('device:%s' % device)
@@ -127,8 +150,19 @@ class EC2Helper():
     Update the configuration by converting the specified properties into lists.
     """
     for k in keys:
-      if instance_conf[k] is not None:
+      if k in instance_conf:
         instance_conf[k] = self.make_list(instance_conf[k])
+
+  def compress_user_data(self, instance_conf):
+    """
+    Update the user_data script contained in the config.
+    """
+    k = 'user_data'
+    if k in instance_conf:
+      out = StringIO.StringIO()
+      with gzip.GzipFile(fileobj = out, mode = 'w') as f:
+        f.write(instance_conf[k])
+      instance_conf[k] = out.getvalue()
 
   def run_instances(self):
     """
@@ -138,6 +172,7 @@ class EC2Helper():
     instance_conf = self.get_conf('instance')
     self.update_block_devices(instance_conf)
     self.update_list_properties(instance_conf)
+    self.compress_user_data(instance_conf)
 
     # create an instance
     reservation = self.ec2.run_instances(**instance_conf)
@@ -161,13 +196,13 @@ class EC2Helper():
     """
     self.ec2.create_tags(ids, self.get_conf('tags'))
 
-  def terminate_instances(self):
+  def terminate_instances(self, instances = None, filters = None):
     """
     Terminates existing instances, which match the tags in the configuration.
     """
     # kill instances BE VERY CAREFUL
     term_states = ['terminated', 'shutting-down']
-    ids = [e.id for e in self.get_instances() if e.state not in term_states]
+    ids = [e.id for e in self.get_instances(instances = instances, filters = filters) if e.state not in term_states]
     if len(ids) == 0:
       print('No matching instances')
     else:
@@ -188,17 +223,19 @@ def main():
   parser = argparse.ArgumentParser(description = 'A convenience wrapper for managing instances in Amazon EC2')
   parser.add_argument('-c', '--config', help = 'an alternate configuration file')
   parser.add_argument('-a', '--all', help = 'include all matching instances, even terminated ones', action = 'store_true')
+  parser.add_argument('-i', '--instances', help = 'comma-separated list of specific instances to terminate or list')
+  parser.add_argument('-f', '--filters', help = 'comma-separated list of filters for list or terminate')
   parser.add_argument('command', help = 'commands are: help, list, run, terminate, tags')
   args = parser.parse_args(args = sys.argv[1:])
   if args.command == 'list':
     bw = EC2Helper(args.config)
-    bw.list_instances(show_terminated = args.all)
+    bw.list_instances(show_terminated = args.all, instances = args.instances, filters = args.filters)
   elif args.command == 'run':
     bw = EC2Helper(args.config)
     bw.run_instances()
   elif args.command == 'terminate':
     bw = EC2Helper(args.config)
-    bw.terminate_instances()
+    bw.terminate_instances(instances = args.instances, filters = args.filters)
   elif args.command == 'tags':
     bw = EC2Helper(args.config, connect = False)
     print_dict(bw.get_conf('tags'))
