@@ -1,6 +1,6 @@
-boto-wrapper
-============
+ec2helper
+=========
 
-A simple wrapper for python-boto, for launching instances
+A simple wrapper for python-boto, for launching instances in Amazon EC2.
 
-Intended for use with python-boto 2.34.0.
+Tested with python-boto 2.34.0.
