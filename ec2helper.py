@@ -125,7 +125,7 @@ class EC2Helper():
         maxlen = max(maxlen, len(x))
       padding = '%%%ss:' % str(maxlen + 2)
       for x in options:
-        print(('%s %%s' % padding) % (' '.join([s.capitalize() for s in x.split('_')]), eval('e.%s'%x)))
+        print(('%s %%s' % padding) % (x, getattr(e, x)))
       for name, device in e.block_device_mapping.items():
         print(padding % (name))
         for vol in self.ec2.get_all_volumes([device.volume_id]):
