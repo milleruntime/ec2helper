@@ -216,7 +216,7 @@ class EC2Helper():
 def print_dict(dict, format = '%s = %s'):
   [print(format % (k, v)) for k, v in dict.items()]
 
-def main():
+def main(args = []):
   """
   Execute with --help for details on available options.
   """
@@ -226,26 +226,26 @@ def main():
   parser.add_argument('-i', '--instances', help = 'comma-separated list of specific instances to terminate or list')
   parser.add_argument('-f', '--filters', help = 'comma-separated list of filters for list or terminate')
   parser.add_argument('command', help = 'commands are: help, list, run, terminate, tags')
-  args = parser.parse_args(args = sys.argv[1:])
-  if args.command == 'list':
-    bw = EC2Helper(args.config)
-    bw.list_instances(show_terminated = args.all, instances = args.instances, filters = args.filters)
-  elif args.command == 'run':
-    bw = EC2Helper(args.config)
+  argp = parser.parse_args(args = args)
+  if argp.command == 'list':
+    bw = EC2Helper(argp.config)
+    bw.list_instances(show_terminated = argp.all, instances = argp.instances, filters = argp.filters)
+  elif argp.command == 'run':
+    bw = EC2Helper(argp.config)
     bw.run_instances()
-  elif args.command == 'terminate':
-    bw = EC2Helper(args.config)
-    bw.terminate_instances(instances = args.instances, filters = args.filters)
-  elif args.command == 'tags':
-    bw = EC2Helper(args.config, connect = False)
+  elif argp.command == 'terminate':
+    bw = EC2Helper(argp.config)
+    bw.terminate_instances(instances = argp.instances, filters = argp.filters)
+  elif argp.command == 'tags':
+    bw = EC2Helper(argp.config, connect = False)
     print_dict(bw.get_conf('tags'))
-  elif args.command == 'help':
+  elif argp.command == 'help':
     parser.print_help()
   else:
-    sys.exit('Unrecognized command, \'%s\'. Try again with --help' % args.command)
+    sys.exit('Unrecognized command, \'%s\'. Try \'help\' instead.' % argp.command)
 
 if __name__ == '__main__':
   try:
-    main()
+    main(sys.argv[1:])
   except KeyboardInterrupt:
     sys.exit('Operation aborted and left in an unknown state.')
