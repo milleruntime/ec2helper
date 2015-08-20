@@ -160,8 +160,12 @@ class EC2Helper():
     k = 'user_data'
     if k in instance_conf:
       out = StringIO.StringIO()
-      with gzip.GzipFile(fileobj = out, mode = 'w') as f:
-        f.write(instance_conf[k])
+      # won't work with python 2.6
+      #with gzip.GzipFile(fileobj = out, mode = 'wb') as f:
+      #  f.write(instance_conf[k])
+      f = gzip.GzipFile(fileobj = out, mode = 'wb')
+      f.write(instance_conf[k])
+      f.close()
       instance_conf[k] = out.getvalue()
 
   def run_instances(self):
