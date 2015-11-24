@@ -35,6 +35,7 @@ class EC2Helper():
       conffile = os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'ec2helper.ini')
 
     self.config = SafeConfigParser()
+    self.config.optionxform = str # make config case-sensitive
     try:
       self.config.read(conffile)
     except MissingSectionHeaderError:
