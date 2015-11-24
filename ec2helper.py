@@ -154,9 +154,20 @@ class EC2Helper():
       if k in instance_conf:
         instance_conf[k] = self.make_list(instance_conf[k])
 
-  def compress_user_data(self, instance_conf):
+  def update_user_data(self, instance_conf):
     """
     Update the user_data script contained in the config.
+    """
+    k = 'user_data'
+    if k in instance_conf:
+      old_user_data = instance_conf[k].splitlines()
+      # strip first leading pipe character
+      lines = [line[1:] if '|' == line[0] else line for line in old_user_data]
+      instance_conf[k] = '\n'.join(lines)
+
+  def compress_user_data(self, instance_conf):
+    """
+    Compress the user_data script contained in the config.
     """
     k = 'user_data'
     if k in instance_conf:
@@ -177,6 +188,7 @@ class EC2Helper():
     instance_conf = self.get_conf('instance')
     self.update_block_devices(instance_conf)
     self.update_list_properties(instance_conf)
+    self.update_user_data(instance_conf)
     self.compress_user_data(instance_conf)
 
     # create an instance
@@ -230,7 +242,7 @@ def main(args = []):
   parser.add_argument('-a', '--all', help = 'include all matching instances, even terminated ones', action = 'store_true')
   parser.add_argument('-i', '--instances', help = 'comma-separated list of specific instances to terminate or list')
   parser.add_argument('-f', '--filters', help = 'comma-separated list of filters for list or terminate')
-  parser.add_argument('command', help = 'commands are: help, list, run, terminate, tags')
+  parser.add_argument('command', help = 'commands are: help, list, run, terminate, tags, user-data')
   argp = parser.parse_args(args = args)
   if argp.command == 'list':
     bw = EC2Helper(argp.config)
@@ -244,6 +256,11 @@ def main(args = []):
   elif argp.command == 'tags':
     bw = EC2Helper(argp.config, connect = False)
     print_dict(bw.get_conf('tags'))
+  elif argp.command == 'user-data':
+    bw = EC2Helper(argp.config, connect = False)
+    instance_config = bw.get_conf('instance')
+    bw.update_user_data(instance_config)
+    print(instance_config['user_data'])
   elif argp.command == 'help':
     parser.print_help()
   else:
