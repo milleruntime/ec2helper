@@ -242,7 +242,7 @@ def main(args = []):
   parser.add_argument('-a', '--all', help = 'include all matching instances, even terminated ones', action = 'store_true')
   parser.add_argument('-i', '--instances', help = 'comma-separated list of specific instances to terminate or list')
   parser.add_argument('-f', '--filters', help = 'comma-separated list of filters for list or terminate')
-  parser.add_argument('command', help = 'commands are: help, list, run, terminate, tags, user-data')
+  parser.add_argument('command', help = 'commands are: help, list, run, terminate, tags, user-data, latest-centos7')
   argp = parser.parse_args(args = args)
   if argp.command == 'list':
     bw = EC2Helper(argp.config)
@@ -261,6 +261,10 @@ def main(args = []):
     instance_config = bw.get_conf('instance')
     bw.update_user_data(instance_config)
     print(instance_config['user_data'])
+  elif argp.command == 'latest-centos7':
+    bw = EC2Helper(argp.config)
+    for ami in bw.ec2.get_all_images(owners='aws-marketplace', filters={'product-code': 'aw0evgkw8e5c1q413zgy5pjce', 'is-public': 'true'}):
+      print(ami.id)
   elif argp.command == 'help':
     parser.print_help()
   else:
