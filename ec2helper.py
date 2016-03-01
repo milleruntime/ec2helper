@@ -213,6 +213,21 @@ class EC2Helper():
     """
     self.ec2.create_tags(ids, self.get_conf('tags'))
 
+  def update_tags(self, instances = None, filters = None):
+    """
+    Update the matching instances with the current tags.
+    """
+    ids = []
+    for instance in self.get_instances(instances = instances, filters = filters):
+      nic_ids = [e.id for e in instance.interfaces]
+      volume_ids = [e.id for e in self.ec2.get_all_volumes(filters = {'attachment.instance-id':instance.id}) ]
+      ids = ids + [instance.id] + nic_ids + volume_ids
+    if len(ids) == 0:
+      print('No matching instances')
+    else:
+      print("Adding tags to %s" % (ids))
+      self.add_tags(ids)
+
   def terminate_instances(self, instances = None, filters = None):
     """
     Terminates existing instances, which match the tags in the configuration.
@@ -242,28 +257,31 @@ def main(args = []):
   parser.add_argument('-a', '--all', help = 'include all matching instances, even terminated ones', action = 'store_true')
   parser.add_argument('-i', '--instances', help = 'comma-separated list of specific instances to terminate or list')
   parser.add_argument('-f', '--filters', help = 'comma-separated list of filters for list or terminate')
-  parser.add_argument('command', help = 'commands are: help, list, run, terminate, tags, user-data, latest-centos7')
+  parser.add_argument('command', help = 'commands are: help, list, run, terminate, tags, user-data, update-tags, latest-centos7')
   argp = parser.parse_args(args = args)
   if argp.command == 'list':
-    bw = EC2Helper(argp.config)
-    bw.list_instances(show_terminated = argp.all, instances = argp.instances, filters = argp.filters)
+    helper = EC2Helper(argp.config)
+    helper.list_instances(show_terminated = argp.all, instances = argp.instances, filters = argp.filters)
   elif argp.command == 'run':
-    bw = EC2Helper(argp.config)
-    bw.run_instances()
+    helper = EC2Helper(argp.config)
+    helper.run_instances()
   elif argp.command == 'terminate':
-    bw = EC2Helper(argp.config)
-    bw.terminate_instances(instances = argp.instances, filters = argp.filters)
+    helper = EC2Helper(argp.config)
+    helper.terminate_instances(instances = argp.instances, filters = argp.filters)
   elif argp.command == 'tags':
-    bw = EC2Helper(argp.config, connect = False)
-    print_dict(bw.get_conf('tags'))
+    helper = EC2Helper(argp.config, connect = False)
+    print_dict(helper.get_conf('tags'))
   elif argp.command == 'user-data':
-    bw = EC2Helper(argp.config, connect = False)
-    instance_config = bw.get_conf('instance')
-    bw.update_user_data(instance_config)
+    helper = EC2Helper(argp.config, connect = False)
+    instance_config = helper.get_conf('instance')
+    helper.update_user_data(instance_config)
     print(instance_config['user_data'])
+  elif argp.command == 'update-tags':
+    helper = EC2Helper(argp.config)
+    helper.update_tags(instances = argp.instances, filters = argp.filters)
   elif argp.command == 'latest-centos7':
-    bw = EC2Helper(argp.config)
-    for ami in bw.ec2.get_all_images(owners='aws-marketplace', filters={'product-code': 'aw0evgkw8e5c1q413zgy5pjce', 'is-public': 'true'}):
+    helper = EC2Helper(argp.config)
+    for ami in helper.ec2.get_all_images(owners='aws-marketplace', filters={'product-code': 'aw0evgkw8e5c1q413zgy5pjce', 'is-public': 'true'}):
       print(ami.id)
   elif argp.command == 'help':
     parser.print_help()
