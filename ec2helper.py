@@ -120,7 +120,7 @@ class EC2Helper():
       print('=' * 65)
       options = [ 'id', 'ip_address', 'private_ip_address', 'state',
         'instance_type', 'launch_time', 'key_name', 'vpc_id', 'subnet_id',
-        'root_device_name', 'root_device_type' ]
+        'root_device_name', 'root_device_type', 'tags' ]
       maxlen = 0
       for x in options:
         maxlen = max(maxlen, len(x))
